@@ -15,13 +15,15 @@
       </header>
 
       <section id="home">
-        <button id="btn-host" class="primary">QRを表示する<small>先に始める側</small></button>
-        <button id="btn-join" class="primary">QRを読み取る<small>あとから参加する側</small></button>
+        <button id="btn-host" class="primary">QRを表示する<small>相手はスマホのカメラで読むだけ</small></button>
+        <button id="btn-join" class="primary">QRを読み取る<small>このアプリのカメラで読む</small></button>
         <ol class="steps">
-          <li>片方が「QRを表示する」、もう片方が「QRを読み取る」を押す</li>
-          <li>読み取った側に出るQRを、最初の側のカメラで読む</li>
+          <li>片方が「QRを表示する」を押す</li>
+          <li>もう片方がそのQRをカメラで読む（1回だけ）</li>
           <li>つながったらファイルを選んで送る</li>
         </ol>
+        <button id="btn-host-manual" class="ghost">中継なしでつなぐ（QRを2回読む）</button>
+        <p class="note">通常は、接続の準備だけ公開の中継サーバーを使います（内容は暗号化され、ファイルは通りません）。「中継なし」はQRを互いに読み合うことで、それも使いません。</p>
       </section>
 
       <section id="pair" hidden>
@@ -29,21 +31,24 @@
         <div id="qr" class="qr" hidden></div>
         <div id="cam" class="cam" hidden><video id="video" playsinline muted></video></div>
         <details id="manual">
-          <summary>カメラが使えないとき（コードを貼り付ける）</summary>
+          <summary>QRを使えないとき（コードを貼り付ける）</summary>
           <div id="manual-out" hidden>
             <label for="my-code">この端末のコード</label>
             <textarea id="my-code" readonly rows="3"></textarea>
             <button id="btn-copy">コピー</button>
           </div>
-          <label for="their-code">相手のコード</label>
-          <textarea id="their-code" rows="3" autocapitalize="off" autocomplete="off" spellcheck="false"></textarea>
-          <button id="btn-apply">このコードで接続</button>
+          <div id="manual-in">
+            <label for="their-code">相手のコード</label>
+            <textarea id="their-code" rows="3" autocapitalize="off" autocomplete="off" spellcheck="false"></textarea>
+            <button id="btn-apply">このコードで接続</button>
+          </div>
         </details>
         <button id="btn-cancel" class="ghost">やめる</button>
       </section>
 
       <section id="room" hidden>
         <p id="room-msg" class="msg ok" role="status">接続しました。どちらからでも送れます。</p>
+        <p id="verify" class="note" hidden></p>
         <label id="drop" class="drop">
           <input id="file" type="file" multiple hidden />
           <span>ファイルを選ぶ</span>

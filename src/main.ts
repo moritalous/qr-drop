@@ -1,6 +1,8 @@
 import { renderQr, startScanner } from "./qr";
+import { connectRelay, joinUrl, newSecret, parseJoin, type RelaySession } from "./relay";
 import { acceptAnswer, acceptOffer, createOffer } from "./rtc";
-import { Transfer, type FileInfo } from "./transfer";
+import { Transfer, type FileInfo, type TransferEvents } from "./transfer";
+import { verifyCode } from "./verify";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -10,19 +12,26 @@ const roomMsg = $("room-msg");
 const qrBox = $("qr");
 const camBox = $("cam");
 const video = $<HTMLVideoElement>("video");
+const manual = $<HTMLDetailsElement>("manual");
 const manualOut = $("manual-out");
+const manualIn = $("manual-in");
 const myCode = $<HTMLTextAreaElement>("my-code");
 const theirCode = $<HTMLTextAreaElement>("their-code");
 const fileInput = $<HTMLInputElement>("file");
 const drop = $("drop");
 const fileList = $("files");
+const verify = $("verify");
 
 const CONNECT_TIMEOUT_MS = 20000;
+const RELAY_JOIN_TIMEOUT_MS = 40000;
+const SAME_WIFI_HINT = "接続できませんでした。両方の端末が同じWi-Fiにあるか確認して、もう一度試してください。";
 
-let mode: "host" | "join" | null = null;
+/** relay-host: 1回スキャンの表示側 / manual-host: 2回スキャンの開始側 / join: 読み取る側(両方式) */
+let mode: "relay-host" | "manual-host" | "join" | null = null;
 let pc: RTCPeerConnection | null = null;
+let relay: RelaySession | null = null;
 let stopScanner: (() => void) | null = null;
-let transfer: Transfer | null = null;
+let sender: { send(file: File): void } | null = null;
 let busy = false; // コードを処理中、または処理済み
 let connectTimer: ReturnType<typeof setTimeout> | undefined;
 let wakeLock: { release(): Promise<void> } | null = null;
@@ -56,24 +65,27 @@ async function startCamera(): Promise<boolean> {
     return true;
   } catch {
     camBox.hidden = true;
-    $<HTMLDetailsElement>("manual").open = true;
+    manual.open = true;
     return false;
   }
 }
 
 function watch(conn: RTCPeerConnection): void {
   conn.addEventListener("connectionstatechange", () => {
-    if (conn !== pc) return;
-    if (conn.connectionState === "failed") {
-      if (transfer) lost();
-      else failPairing("接続できませんでした。両方の端末が同じWi-Fiにあるか確認して、もう一度試してください。");
-    }
+    if (conn !== pc || conn.connectionState !== "failed") return;
+    if (sender) lost();
+    else failPairing(SAME_WIFI_HINT);
   });
 }
 
 function failPairing(text: string): void {
+  if (sender) return;
   clearTimeout(connectTimer);
   stopCamera();
+  relay?.leave();
+  relay = null;
+  qrBox.hidden = true;
+  manual.hidden = true;
   setMsg(pairMsg, text, "err");
 }
 
@@ -83,8 +95,56 @@ function lost(): void {
   void wakeLock?.release().catch(() => {});
 }
 
-async function host(): Promise<void> {
-  mode = "host";
+const events: TransferEvents = {
+  onStart: (dir, info) => addRow(dir, info),
+  onProgress: (dir, id, bytes) => updateRow(dir, id, bytes),
+  onDone: (dir, id, blob) => finishRow(dir, id, blob),
+  onError: (dir, id, message) => errorRow(dir, id, message),
+};
+
+// ---- 1回スキャン(公開リレー経由) ----
+
+async function startRelay(secret: string): Promise<void> {
+  try {
+    relay = await connectRelay(secret, events, {
+      onConnected: (s, conn) => enterRoom(s, conn),
+      onLeft: lost,
+      onError: failPairing,
+    });
+  } catch (e) {
+    failPairing(`準備に失敗しました: ${(e as Error).message}`);
+  }
+}
+
+async function hostRelay(): Promise<void> {
+  mode = "relay-host";
+  busy = true; // この側は相手のコードを受け取らない
+  show("pair");
+  manualIn.hidden = true;
+  const secret = newSecret();
+  showMyCode(joinUrl(secret));
+  setMsg(pairMsg, "このQRを相手のカメラで読み取ってもらってください。相手を待っています…");
+  await startRelay(secret);
+}
+
+async function joinRelay(secret: string): Promise<void> {
+  mode = "join";
+  busy = true;
+  stopCamera();
+  show("pair");
+  manual.hidden = true;
+  setMsg(pairMsg, "接続中…（数秒〜十数秒かかります）");
+  connectTimer = setTimeout(
+    () => failPairing("相手が見つかりませんでした。相手の画面にQRが出たままか確認して、もう一度読み取ってください。"),
+    RELAY_JOIN_TIMEOUT_MS,
+  );
+  await startRelay(secret);
+}
+
+// ---- 2回スキャン(中継なし) ----
+
+async function hostManual(): Promise<void> {
+  mode = "manual-host";
   show("pair");
   setMsg(pairMsg, "準備中…");
   // 先にカメラを許可してもらうと、ブラウザがLAN内の実アドレスを接続情報に含めるためつながりやすい
@@ -93,12 +153,12 @@ async function host(): Promise<void> {
     const offer = await createOffer();
     pc = offer.pc;
     watch(pc);
-    offer.dc.addEventListener("open", () => enterRoom(offer.dc), { once: true });
+    offer.dc.addEventListener("open", () => enterRoomManual(offer.dc), { once: true });
     showMyCode(offer.code);
     setMsg(
       pairMsg,
       cam
-        ? "① このQRを相手に読み取ってもらう → ② 相手の画面に出たQRを下のカメラに写す"
+        ? "① 相手に「QRを読み取る」でこのQRを読んでもらう → ② 相手の画面に出たQRを下のカメラに写す"
         : "カメラを使えません。下の欄でコードをやり取りしてください。",
     );
   } catch (e) {
@@ -114,32 +174,33 @@ async function join(): Promise<void> {
   setMsg(pairMsg, cam ? "相手の画面のQRをカメラに写してください" : "カメラを使えません。下の欄に相手のコードを貼り付けてください。");
 }
 
-async function handleCode(text: string, manual: boolean): Promise<void> {
-  if (busy || !mode || !text.startsWith("QD1~")) {
-    if (manual && !busy) setMsg(pairMsg, "QR Dropのコードではありません", "err");
+async function handleCode(text: string, typed: boolean): Promise<void> {
+  if (busy || !mode) return;
+  const secret = parseJoin(text);
+  if (secret && mode === "join") return joinRelay(secret);
+  if (secret || !text.startsWith("QD1~")) {
+    if (typed) setMsg(pairMsg, "この画面では使えないコードです", "err");
     return;
   }
   busy = true;
   try {
-    if (mode === "host") {
+    if (mode === "manual-host") {
       if (!pc) throw new Error("まだ準備中です");
       await acceptAnswer(pc, text);
       stopCamera();
       setMsg(pairMsg, "読み取りました。接続中…");
-      connectTimer = setTimeout(
-        () => failPairing("接続できませんでした。両方の端末が同じWi-Fiにあるか確認して、もう一度試してください。"),
-        CONNECT_TIMEOUT_MS,
-      );
+      connectTimer = setTimeout(() => failPairing(SAME_WIFI_HINT), CONNECT_TIMEOUT_MS);
     } else {
       const answer = await acceptOffer(text);
       pc = answer.pc;
       watch(pc);
       stopCamera();
       showMyCode(answer.code);
+      manualIn.hidden = true;
       setMsg(pairMsg, "読み取りました。このQRを相手のカメラに写してください");
       void answer.dc.then((dc) => {
-        if (dc.readyState === "open") enterRoom(dc);
-        else dc.addEventListener("open", () => enterRoom(dc), { once: true });
+        if (dc.readyState === "open") enterRoomManual(dc);
+        else dc.addEventListener("open", () => enterRoomManual(dc), { once: true });
       });
     }
   } catch (e) {
@@ -149,16 +210,22 @@ async function handleCode(text: string, manual: boolean): Promise<void> {
   }
 }
 
-function enterRoom(dc: RTCDataChannel): void {
+function enterRoomManual(dc: RTCDataChannel): void {
+  dc.addEventListener("close", lost);
+  enterRoom(new Transfer(dc, events), pc);
+}
+
+// ---- 接続後 ----
+
+function enterRoom(s: { send(file: File): void }, conn: RTCPeerConnection | null): void {
   clearTimeout(connectTimer);
   stopCamera();
+  sender = s;
   show("room");
-  dc.addEventListener("close", lost);
-  transfer = new Transfer(dc, {
-    onStart: (dir, info) => addRow(dir, info),
-    onProgress: (dir, id, bytes) => updateRow(dir, id, bytes),
-    onDone: (dir, id, blob) => finishRow(dir, id, blob),
-    onError: (dir, id, message) => errorRow(dir, id, message),
+  void verifyCode(conn).then((code) => {
+    if (!code) return;
+    verify.innerHTML = `確認コード <b>${code}</b> ・ 相手の画面と同じ数字なら、目の前の相手と直接つながっています。`;
+    verify.hidden = false;
   });
   // 転送中に画面が消えて止まるのを防ぐ(対応ブラウザのみ)
   const wl = (navigator as Navigator & { wakeLock?: { request(type: "screen"): Promise<{ release(): Promise<void> }> } })
@@ -211,7 +278,7 @@ function addRow(dir: "send" | "recv", info: FileInfo): void {
 
 function updateRow(dir: "send" | "recv", id: string, bytes: number): void {
   const row = rows.get(`${dir}:${id}`);
-  if (!row) return;
+  if (!row || !row.bar.isConnected) return;
   row.bar.value = bytes;
   row.state.textContent = `${Math.floor((bytes / Math.max(row.info.size, 1)) * 100)}%`;
 }
@@ -240,11 +307,12 @@ function errorRow(dir: "send" | "recv", id: string, message: string): void {
 }
 
 function sendFiles(files: FileList | null | undefined): void {
-  if (!transfer || !files) return;
-  for (const file of files) transfer.send(file);
+  if (!sender || !files) return;
+  for (const file of files) sender.send(file);
 }
 
-$("btn-host").addEventListener("click", () => void host());
+$("btn-host").addEventListener("click", () => void hostRelay());
+$("btn-host-manual").addEventListener("click", () => void hostManual());
 $("btn-join").addEventListener("click", () => void join());
 $("btn-cancel").addEventListener("click", () => location.reload());
 $("btn-leave").addEventListener("click", () => location.reload());
@@ -274,3 +342,11 @@ for (const type of ["dragleave", "drop"]) {
   });
 }
 drop.addEventListener("drop", (e) => sendFiles((e as DragEvent).dataTransfer?.files));
+
+// スマホ標準のカメラでQRを読むと、秘密が # 以降に入ったURLで開かれる
+const secretInUrl = parseJoin(location.hash);
+if (secretInUrl) {
+  // 秘密をアドレスバーと履歴に残さない
+  history.replaceState(null, "", location.pathname + location.search);
+  void joinRelay(secretInUrl);
+}

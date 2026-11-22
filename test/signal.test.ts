@@ -101,3 +101,15 @@ test("QRにして読み戻せる", () => {
   }
   expect(jsQR(data, size, size)?.data).toBe(text);
 });
+
+test("参加用URLから秘密を取り出せる", async () => {
+  const { joinUrl, newSecret, parseJoin } = await import("../src/relay");
+  const secret = newSecret();
+  expect(secret).toMatch(/^[A-Za-z0-9_-]{22}$/);
+  const url = joinUrl(secret, "https://example.github.io/qr-drop/?x=1#old");
+  expect(url).toBe(`https://example.github.io/qr-drop/#j=${secret}`);
+  expect(parseJoin(url)).toBe(secret);
+  expect(parseJoin(`#j=${secret}`)).toBe(secret);
+  expect(parseJoin("https://example.com/#j=short")).toBeNull();
+  expect(parseJoin("QD1~o~a~b~c~")).toBeNull();
+});
