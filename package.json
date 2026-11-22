@@ -1,0 +1,19 @@
+{
+  "name": "qr-drop",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "bun ./index.html",
+    "build": "rm -rf dist && bun build ./index.html --outdir dist --minify",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^7"
+  },
+  "dependencies": {
+    "jsqr": "^1.4.0",
+    "qrcode-generator": "^2.0.4"
+  }
+}

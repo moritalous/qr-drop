@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>QR Drop</title>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>QR Drop</h1>
+        <p class="lead">QRコードを見せ合って、端末どうしで直接ファイルを送ります。サーバーには何も保存されません。</p>
+      </header>
+
+      <section id="home">
+        <button id="btn-host" class="primary">QRを表示する<small>先に始める側</small></button>
+        <button id="btn-join" class="primary">QRを読み取る<small>あとから参加する側</small></button>
+        <ol class="steps">
+          <li>片方が「QRを表示する」、もう片方が「QRを読み取る」を押す</li>
+          <li>読み取った側に出るQRを、最初の側のカメラで読む</li>
+          <li>つながったらファイルを選んで送る</li>
+        </ol>
+      </section>
+
+      <section id="pair" hidden>
+        <p id="pair-msg" class="msg" role="status"></p>
+        <div id="qr" class="qr" hidden></div>
+        <div id="cam" class="cam" hidden><video id="video" playsinline muted></video></div>
+        <details id="manual">
+          <summary>カメラが使えないとき（コードを貼り付ける）</summary>
+          <div id="manual-out" hidden>
+            <label for="my-code">この端末のコード</label>
+            <textarea id="my-code" readonly rows="3"></textarea>
+            <button id="btn-copy">コピー</button>
+          </div>
+          <label for="their-code">相手のコード</label>
+          <textarea id="their-code" rows="3" autocapitalize="off" autocomplete="off" spellcheck="false"></textarea>
+          <button id="btn-apply">このコードで接続</button>
+        </details>
+        <button id="btn-cancel" class="ghost">やめる</button>
+      </section>
+
+      <section id="room" hidden>
+        <p id="room-msg" class="msg ok" role="status">接続しました。どちらからでも送れます。</p>
+        <label id="drop" class="drop">
+          <input id="file" type="file" multiple hidden />
+          <span>ファイルを選ぶ</span>
+          <small>ここにドラッグ＆ドロップもできます</small>
+        </label>
+        <ul id="files" class="files"></ul>
+        <button id="btn-leave" class="ghost">切断する</button>
+      </section>
+    </main>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
