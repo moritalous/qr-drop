@@ -26,10 +26,10 @@
   <text x="480" y="194" font-size="12" text-anchor="middle" fill="#1f2937">② QRで合言葉を渡す（画面 → カメラ。ネットワークを通らない）</text>
   <rect x="48" y="228" width="224" height="44" rx="8" fill="#ffffff" stroke="#6b7280" stroke-width="1.5"/>
   <text x="160" y="247" font-size="13" text-anchor="middle" fill="#1f2937">③ 合言葉から計算する</text>
-  <text x="160" y="263" font-size="11" text-anchor="middle" fill="#6b7280">「部屋の名前」と「暗号鍵」</text>
+  <text x="160" y="263" font-size="11" text-anchor="middle" fill="#6b7280">タグの値 と 暗号鍵</text>
   <rect x="688" y="228" width="224" height="44" rx="8" fill="#ffffff" stroke="#6b7280" stroke-width="1.5"/>
   <text x="800" y="247" font-size="13" text-anchor="middle" fill="#1f2937">③ 合言葉から計算する</text>
-  <text x="800" y="263" font-size="11" text-anchor="middle" fill="#6b7280">「部屋の名前」と「暗号鍵」</text>
+  <text x="800" y="263" font-size="11" text-anchor="middle" fill="#6b7280">タグの値 と 暗号鍵</text>
   <text x="480" y="246" font-size="11" text-anchor="middle" fill="#6b7280">同じ合言葉からは</text>
   <text x="480" y="262" font-size="11" text-anchor="middle" fill="#6b7280">同じ結果が出る</text>
   <rect x="48" y="292" width="224" height="44" rx="8" fill="#ffffff" stroke="#6b7280" stroke-width="1.5"/>
@@ -40,17 +40,17 @@
   <text x="800" y="327" font-size="11" text-anchor="middle" fill="#6b7280">自分の外側の宛先を知る</text>
   <rect x="370" y="372" width="220" height="56" rx="8" fill="#ffffff" stroke="#d9603b" stroke-width="1.5"/>
   <text x="480.0" y="396.0" font-size="15" text-anchor="middle" fill="#1f2937">公開Nostrリレー</text>
-  <text x="480.0" y="416.0" font-size="11" text-anchor="middle" fill="#6b7280">掲示板。部屋の名前で区切られる</text>
+  <text x="480.0" y="416.0" font-size="11" text-anchor="middle" fill="#6b7280">タグが一致する相手に転送する</text>
   <line x1="160" y1="460" x2="480" y2="460" stroke="#6b7280" stroke-width="1.3" marker-end="url(#arrow)"/>
-  <text x="320" y="450" font-size="11" text-anchor="middle" fill="#6b7280">⑤ 暗号化した接続情報を書く</text>
+  <text x="320" y="450" font-size="11" text-anchor="middle" fill="#6b7280">⑤ 暗号化した接続情報をEVENTで送る</text>
   <line x1="800" y1="460" x2="480" y2="460" stroke="#6b7280" stroke-width="1.3" marker-end="url(#arrow)"/>
-  <text x="640" y="450" font-size="11" text-anchor="middle" fill="#6b7280">⑤ 暗号化した接続情報を書く</text>
+  <text x="640" y="450" font-size="11" text-anchor="middle" fill="#6b7280">⑤ 暗号化した接続情報をEVENTで送る</text>
   <line x1="480" y1="504" x2="160" y2="504" stroke="#6b7280" stroke-width="1.3" marker-end="url(#arrow)"/>
-  <text x="320" y="494" font-size="11" text-anchor="middle" fill="#6b7280">相手の書き込みを受け取る</text>
+  <text x="320" y="494" font-size="11" text-anchor="middle" fill="#6b7280">相手のEVENTが転送されてくる</text>
   <line x1="480" y1="504" x2="800" y2="504" stroke="#6b7280" stroke-width="1.3" marker-end="url(#arrow)"/>
-  <text x="640" y="494" font-size="11" text-anchor="middle" fill="#6b7280">相手の書き込みを受け取る</text>
+  <text x="640" y="494" font-size="11" text-anchor="middle" fill="#6b7280">相手のEVENTが転送されてくる</text>
   <text x="480" y="560" font-size="11" text-anchor="middle" fill="#6b7280">リレーの出番はここまで</text>
-  <text x="480" y="576" font-size="11" text-anchor="middle" fill="#6b7280">見えるのは部屋の名前と暗号文だけ</text>
+  <text x="480" y="576" font-size="11" text-anchor="middle" fill="#6b7280">見えるのはタグの値と暗号文だけ</text>
   <rect x="48" y="532" width="224" height="44" rx="8" fill="#ffffff" stroke="#6b7280" stroke-width="1.5"/>
   <text x="160" y="551" font-size="13" text-anchor="middle" fill="#1f2937">⑥ 暗号鍵で復号する</text>
   <text x="160" y="567" font-size="11" text-anchor="middle" fill="#6b7280">相手の宛先と鍵の指紋がわかる</text>
